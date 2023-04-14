@@ -1,0 +1,7 @@
+{
+  "tasks": {
+    "fix": "deno fmt",
+    "ci": "deno fmt --check && deno lint && deno check $(git ls-files | grep -E '.m?ts$') && deno test --allow-all",
+    "setup-pre-commit": "echo '#!/bin/sh\ndeno task ci' > .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit"
+  }
+}
