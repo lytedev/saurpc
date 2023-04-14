@@ -52,10 +52,19 @@ export async function handleProcedureCall<T extends Procedures>(
 ) {
   const body = await ctx.request.body({ type: "json" }).value;
   if (isProcedureCall(body)) {
-    const result = await callRpc(rpcs, body);
-    ctx.response.status = 200;
-    ctx.response.headers.set("content-type", "application/json");
-    ctx.response.body = JSON.stringify(result);
+    // deno-lint-ignore no-prototype-builtins
+    if (rpcs.hasOwnProperty(body.procedureName)) {
+      const result = await callRpc(rpcs, body);
+      ctx.response.status = 200;
+      ctx.response.headers.set("content-type", "application/json");
+      ctx.response.body = JSON.stringify(result);
+    } else {
+      ctx.response.status = 404;
+      ctx.response.headers.set("content-type", "application/json");
+      ctx.response.body = JSON.stringify({
+        message: `procedureName '${body.procedureName}' not found`,
+      });
+    }
   } else {
     ctx.response.status = 400;
     ctx.response.headers.set("content-type", "application/json");
