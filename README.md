@@ -13,7 +13,7 @@ Please refer to the automated documentation:
 
 Or if you need a particular version, you can specify it like so:
 
-- https://deno.land/x/saurpc@0.1.0/mod.ts
+- https://deno.land/x/saurpc@0.1.1/mod.ts
 
 # Development
 
