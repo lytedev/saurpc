@@ -1,14 +1,19 @@
-# pass_cli_wrapper for Deno
+# saurpc
+
+`saurpc` is a tiny set of functions and types to make strongly-typed RPC easily
+manageable across TypeScript projects.
+
+By default, it bundles an `oak` server and a `fetch` client.
 
 # Usage
 
 Please refer to the automated documentation:
 
-- https://deno.land/x/pass_cli_wrapper/mod.ts
+- https://deno.land/x/saurpc/mod.ts
 
 Or if you need a particular version, you can specify it like so:
 
-- https://deno.land/x/pass_cli_wrapper@0.1.0/mod.ts
+- https://deno.land/x/saurpc@0.1.0/mod.ts
 
 # Development
 
