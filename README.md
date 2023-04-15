@@ -3,8 +3,6 @@
 `saurpc` is a tiny set of functions and types to make strongly-typed RPC easily
 manageable across TypeScript projects.
 
-By default, it bundles an `oak` server and a `fetch` client.
-
 # Usage
 
 Please refer to the automated documentation:
