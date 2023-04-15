@@ -5,7 +5,7 @@ import {
   PublicProcedureError,
 } from "./server.ts";
 
-class ClientProcedureError extends Error {
+export class ClientProcedureError extends Error {
   type: string;
   data?: unknown;
 
