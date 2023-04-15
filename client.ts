@@ -5,14 +5,26 @@ import {
   PublicProcedureError,
 } from "./server.ts";
 
-export type ClientProcedureError = {
-  type: "server_error";
-  error: PublicProcedureError;
-} | {
-  type: "client_exception";
-  error: unknown;
-  response?: Response;
-};
+class ClientProcedureError extends Error {
+  type: string;
+  data?: unknown;
+
+  constructor({ type, error, ...opts }: {
+    type: "server_error";
+    error: PublicProcedureError;
+  } | {
+    type: "client_exception";
+    error: unknown;
+    response?: Response;
+  }) {
+    super(`ClientProcedureError: ${type}: ${error}`, { cause: error });
+
+    this.type = type;
+    this.data = opts;
+
+    this.name = "ClientProcedureError";
+  }
+}
 
 export function buildRequestFor<
   T extends Procedures,
@@ -56,7 +68,11 @@ export class Client<T extends Procedures> {
       if (response.status == 200) {
         return body as ReturnType<T[S]>;
       } else {
-        throw body as ClientProcedureError;
+        // TODO: check that body is a PublicProcedureError
+        throw new ClientProcedureError({
+          type: "server_error",
+          error: body as PublicProcedureError,
+        });
       }
     } catch (error) {
       throw { type: "client_exception", error, response };

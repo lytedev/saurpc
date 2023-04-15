@@ -16,6 +16,7 @@ export type ProcedureErrorType =
   | "procedure_not_found"
   | "invalid_saurpc_payload"
   | "exception_thrown";
+// TODO: convert to subclass of Error
 export type ProcedureError =
   & { message: string; errorType: ProcedureErrorType }
   & (
