@@ -16,30 +16,44 @@ export type ProcedureErrorType =
   | "procedure_not_found"
   | "invalid_saurpc_payload"
   | "exception_thrown";
-// TODO: convert to subclass of Error
-export type ProcedureError =
-  & { message: string; errorType: ProcedureErrorType }
-  & (
-    | {
-      errorType: "procedure_not_found";
-      message: string;
-      data: ProcedureCallPayload;
+
+export class ProcedureError extends Error {
+  type: ProcedureErrorType;
+  data?: unknown;
+
+  constructor({ message, type, data }:
+    & { message: string; type: ProcedureErrorType }
+    & (
+      | {
+        type: "procedure_not_found";
+        message: string;
+        data: ProcedureCallPayload;
+      }
+      | {
+        type: "invalid_saurpc_payload";
+        message: string;
+        data: Request;
+      }
+      | {
+        type: "exception_thrown";
+        message: string;
+        data: { request: Request; error: unknown };
+      }
+    )) {
+    let cause = undefined;
+    if ("error" in data) {
+      cause = data.error;
     }
-    | {
-      errorType: "invalid_saurpc_payload";
-      message: string;
-      data: Request;
-    }
-    | {
-      errorType: "exception_thrown";
-      message: string;
-      data: { request: Request; error: unknown };
-    }
-  );
+    super(message, { cause: cause });
+
+    this.type = type;
+    this.data = data;
+  }
+}
 
 export type PublicProcedureError =
-  & Pick<ProcedureError, "message" | "errorType">
-  & Partial<Omit<ProcedureError, "message" | "errorType">>;
+  & Pick<ProcedureError, "message" | "type">
+  & Partial<Omit<ProcedureError, "message" | "type">>;
 
 export type ProcedureName<T extends Procedures> = keyof T & string;
 export type ServerProcedures<T extends Procedures> = T;
@@ -86,24 +100,28 @@ export async function handleProcedureCall<T extends Procedures>(
           headers: { "content-type": "application/json" },
         });
       } else {
-        throw {
-          errorType: "procedure_not_found",
+        throw new ProcedureError({
+          type: "procedure_not_found",
           message: `No RPC with procedureName '${body.procedureName}'`,
           data: body,
-        };
+        });
       }
     } else {
-      throw {
-        errorType: "invalid_saurpc_payload",
+      throw new ProcedureError({
+        type: "invalid_saurpc_payload",
         message: `Could not parse request body as a valid saurpc request`,
         data: request,
-      };
+      });
     }
   } catch (error) {
-    throw {
-      errorType: "exception_thrown",
-      message: `An exception was thrown when trying to handle the call`,
-      data: { request, error },
-    };
+    if (error instanceof ProcedureError) {
+      throw error;
+    } else {
+      throw new ProcedureError({
+        type: "exception_thrown",
+        message: `An exception was thrown when trying to handle the call`,
+        data: { request, error },
+      });
+    }
   }
 }

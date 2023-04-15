@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.183.0/http/server.ts";
 import {
   assertEquals,
   assertNotEquals,
+  assertRejects,
 } from "https://deno.land/std@0.183.0/testing/asserts.ts";
 import { handleProcedureCall, ProcedureName, Procedures } from "./server.ts";
 import { buildRequestFor, Client } from "./client.ts";
@@ -23,13 +24,20 @@ Deno.test("client/server RPCs work as expected", async () => {
 
   const listener = serve(
     async (req: Request) => {
-      return await handleProcedureCall(req, rpcs);
+      try {
+        return await handleProcedureCall(req, rpcs);
+      } catch (err) {
+        console.error(err);
+        return err;
+      }
     },
     { port: 24515, signal: ac.signal },
   );
 
   const client = new Client("http://127.0.0.1:24515");
   const call = client.call.bind(client);
+
+  assertRejects(() => call("notReal", ["yo"]));
 
   assertEquals(await call("sayHelloTo", ["World"]), "Hello, World");
   assertNotEquals(await call("sayHelloTo", ["World"]), "Hello, None");
@@ -55,11 +63,24 @@ Deno.test("request/response RPCs work as expected", async () => {
     p: S,
     args: Parameters<T[S]>,
   ) {
-    return await (await handleProcedureCall(
-      buildRequestFor("file:///dev/null", p, args),
-      rpcs,
-    )).json();
+    try {
+      const call = await handleProcedureCall(
+        buildRequestFor("file:///dev/null", p, args),
+        rpcs,
+      );
+      return await call.json();
+    } catch (err) {
+      console.error("Error in call:", err);
+      return err;
+    }
   }
+
+  assertRejects(() =>
+    handleProcedureCall(
+      buildRequestFor("file:///dev/null", "not real", []),
+      rpcs,
+    )
+  );
 
   assertEquals(await call("sayHelloTo", ["World"]), "Hello, World");
   assertNotEquals(await call("sayHelloTo", ["World"]), "Hello, None");
