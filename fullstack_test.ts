@@ -18,32 +18,6 @@ const rpcs = {
   },
 };
 
-Deno.test("request/response RPCs work as expected", async () => {
-  async function call<T extends Procedures, S extends ProcedureName<T>>(
-    p: S,
-    args: Parameters<T[S]>,
-  ) {
-    return await (await handleProcedureCall(
-      buildRequestFor("file:///dev/null", p, args),
-      rpcs,
-    )).json();
-  }
-
-  assertEquals(await call("sayHelloTo", ["World"]), "Hello, World");
-  assertNotEquals(await call("sayHelloTo", ["World"]), "Hello, None");
-
-  assertEquals(await call("add", [3, 4]), 7);
-  assertNotEquals(await call("add", [3, 3]), 7);
-
-  assertEquals(
-    await call("report", [3, 4, "You're welcome!"]),
-    "Your score: 3 of 4 -- You're welcome!",
-  );
-  assertNotEquals(
-    await call("report", [3, 9, null]),
-    "Your score: 7 of 9 -- Thank you!",
-  );
-});
 Deno.test("client/server RPCs work as expected", async () => {
   const ac = new AbortController();
 
@@ -74,4 +48,31 @@ Deno.test("client/server RPCs work as expected", async () => {
 
   ac.abort();
   await listener;
+});
+
+Deno.test("request/response RPCs work as expected", async () => {
+  async function call<T extends Procedures, S extends ProcedureName<T>>(
+    p: S,
+    args: Parameters<T[S]>,
+  ) {
+    return await (await handleProcedureCall(
+      buildRequestFor("file:///dev/null", p, args),
+      rpcs,
+    )).json();
+  }
+
+  assertEquals(await call("sayHelloTo", ["World"]), "Hello, World");
+  assertNotEquals(await call("sayHelloTo", ["World"]), "Hello, None");
+
+  assertEquals(await call("add", [3, 4]), 7);
+  assertNotEquals(await call("add", [3, 3]), 7);
+
+  assertEquals(
+    await call("report", [3, 4, "You're welcome!"]),
+    "Your score: 3 of 4 -- You're welcome!",
+  );
+  assertNotEquals(
+    await call("report", [3, 9, null]),
+    "Your score: 7 of 9 -- Thank you!",
+  );
 });
