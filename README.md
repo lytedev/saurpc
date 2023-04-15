@@ -15,7 +15,8 @@ Or if you need a particular version, you can specify it like so:
 
 ## Example
 
-A very basic example is available in [./fullstack_test.ts](./fullstack_test.ts).
+A very basic example is available in
+[./fullstack_test.ts](./fullstack_test.ts?source).
 
 # Development
 
