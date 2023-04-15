@@ -1,9 +1,3 @@
-import {
-  Application,
-  Context,
-  ListenOptions,
-} from "https://deno.land/x/oak@v12.1.0/mod.ts";
-
 export type JsonValue =
   | null
   | boolean
@@ -18,7 +12,33 @@ export type ProcedureCallback = (
 ) => JsonValue | Promise<JsonValue>;
 
 export type Procedures = Record<string, ProcedureCallback>;
-export type ProcedureError = { error: unknown };
+export type ProcedureErrorType =
+  | "procedure_not_found"
+  | "invalid_saurpc_payload"
+  | "exception_thrown";
+export type ProcedureError =
+  & { message: string; errorType: ProcedureErrorType }
+  & (
+    | {
+      errorType: "procedure_not_found";
+      message: string;
+      data: ProcedureCallPayload;
+    }
+    | {
+      errorType: "invalid_saurpc_payload";
+      message: string;
+      data: Request;
+    }
+    | {
+      errorType: "exception_thrown";
+      message: string;
+      data: { request: Request; error: unknown };
+    }
+  );
+
+export type PublicProcedureError =
+  & Pick<ProcedureError, "message" | "errorType">
+  & Partial<Omit<ProcedureError, "message" | "errorType">>;
 
 export type ProcedureName<T extends Procedures> = keyof T & string;
 export type ServerProcedures<T extends Procedures> = T;
@@ -26,6 +46,10 @@ export type ServerProcedures<T extends Procedures> = T;
 export interface ProcedureCallPayload {
   procedureName: string;
   args?: JsonValue[];
+}
+
+export function procedureNamesFor<T extends Procedures>(rpcs: T): Set<keyof T> {
+  return new Set(Object.keys(rpcs));
 }
 
 function isProcedureCall(body: unknown): body is ProcedureCallPayload {
@@ -47,50 +71,38 @@ export async function callRpc<T extends Procedures>(
 }
 
 export async function handleProcedureCall<T extends Procedures>(
-  ctx: Context,
+  request: Request,
   rpcs: T,
-) {
-  const body = await ctx.request.body({ type: "json" }).value;
-  if (isProcedureCall(body)) {
-    // deno-lint-ignore no-prototype-builtins
-    if (rpcs.hasOwnProperty(body.procedureName)) {
-      const result = await callRpc(rpcs, body);
-      ctx.response.status = 200;
-      ctx.response.headers.set("content-type", "application/json");
-      ctx.response.body = JSON.stringify(result);
+): Promise<Response> {
+  try {
+    const body = await request.json();
+    if (isProcedureCall(body)) {
+      // deno-lint-ignore no-prototype-builtins
+      if (rpcs.hasOwnProperty(body.procedureName)) {
+        const result = await callRpc(rpcs, body);
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      } else {
+        throw {
+          errorType: "procedure_not_found",
+          message: `No RPC with procedureName '${body.procedureName}'`,
+          data: body,
+        };
+      }
     } else {
-      ctx.response.status = 404;
-      ctx.response.headers.set("content-type", "application/json");
-      ctx.response.body = JSON.stringify({
-        message: `procedureName '${body.procedureName}' not found`,
-      });
+      throw {
+        errorType: "invalid_saurpc_payload",
+        message: `Could not parse request body as a valid saurpc request`,
+        data: request,
+      };
     }
-  } else {
-    ctx.response.status = 400;
-    ctx.response.headers.set("content-type", "application/json");
-    ctx.response.body = JSON.stringify({
-      message: "Invalid ProcedureCallPayload",
-    });
+  } catch (error) {
+    throw {
+      errorType: "exception_thrown",
+      message: `An exception was thrown when trying to handle the call`,
+      data: { request, error },
+    };
   }
-}
-
-export function createListener<T extends Procedures>(
-  rpcs: T,
-  opts: ListenOptions,
-) {
-  const app = new Application();
-
-  app.use((ctx) => handleProcedureCall(ctx, rpcs));
-
-  const listener = app.listen(opts);
-  // TODO: get addr from listener
-  console.log(`Listening on port ${opts.port || 8000}`);
-  return listener;
-}
-
-export async function serve<T extends Procedures>(
-  rpcs: T,
-  opts: ListenOptions,
-) {
-  await createListener(rpcs, opts);
 }
