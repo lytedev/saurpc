@@ -4,8 +4,9 @@ import {
   assertNotEquals,
   assertRejects,
 } from "https://deno.land/std@0.183.0/testing/asserts.ts";
-import { handleProcedureCall, ProcedureName, Procedures } from "./server.ts";
+import { handleProcedureCall } from "./server.ts";
 import { buildRequestFor, Client } from "./client.ts";
+import { buildCall } from "./testing.ts";
 
 const rpcs = {
   sayHelloTo(a: string) {
@@ -19,7 +20,7 @@ const rpcs = {
   },
 };
 
-Deno.test("client/server RPCs work as expected", async () => {
+Deno.test("basic server and client RPCs work as expected", async () => {
   const ac = new AbortController();
 
   const listener = serve(
@@ -59,21 +60,7 @@ Deno.test("client/server RPCs work as expected", async () => {
 });
 
 Deno.test("request/response RPCs work as expected", async () => {
-  async function call<T extends Procedures, S extends ProcedureName<T>>(
-    p: S,
-    args: Parameters<T[S]>,
-  ) {
-    try {
-      const call = await handleProcedureCall(
-        buildRequestFor("file:///dev/null", p, args),
-        rpcs,
-      );
-      return await call.json();
-    } catch (err) {
-      console.error("Error in call:", err);
-      return err;
-    }
-  }
+  const call = buildCall(rpcs);
 
   assertRejects(() =>
     handleProcedureCall(
