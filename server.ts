@@ -17,7 +17,7 @@ export type ProcedureErrorType =
   | "invalid_saurpc_payload"
   | "exception_thrown";
 
-export class ProcedureError extends Error {
+export class ProcedureError<T extends Procedures> extends Error {
   type: ProcedureErrorType;
   data?: unknown;
 
@@ -27,7 +27,7 @@ export class ProcedureError extends Error {
       | {
         type: "procedure_not_found";
         message: string;
-        data: ProcedureCallPayload;
+        data: ProcedureCallPayload<T>;
       }
       | {
         type: "invalid_saurpc_payload";
@@ -51,15 +51,15 @@ export class ProcedureError extends Error {
   }
 }
 
-export type PublicProcedureError =
-  & Pick<ProcedureError, "message" | "type">
-  & Partial<Omit<ProcedureError, "message" | "type">>;
+export type PublicProcedureError<T extends Procedures> =
+  & Pick<ProcedureError<T>, "message" | "type">
+  & Partial<Omit<ProcedureError<T>, "message" | "type">>;
 
 export type ProcedureName<T extends Procedures> = keyof T & string;
 export type ServerProcedures<T extends Procedures> = T;
 
-export interface ProcedureCallPayload {
-  procedureName: string;
+export interface ProcedureCallPayload<T extends Procedures> {
+  procedureName: keyof T;
   args?: JsonValue[];
 }
 
@@ -67,7 +67,9 @@ export function procedureNamesFor<T extends Procedures>(rpcs: T): Set<keyof T> {
   return new Set(Object.keys(rpcs));
 }
 
-function isProcedureCall(body: unknown): body is ProcedureCallPayload {
+function isProcedureCall<T extends Procedures>(
+  body: unknown,
+): body is ProcedureCallPayload<T> {
   if (typeof body === "object" && body) {
     return "procedureName" in body && typeof body["procedureName"] === "string";
   }
@@ -76,9 +78,9 @@ function isProcedureCall(body: unknown): body is ProcedureCallPayload {
 
 export async function callRpc<T extends Procedures>(
   rpcs: T,
-  { procedureName, args }: ProcedureCallPayload,
+  { procedureName, args }: ProcedureCallPayload<T>,
 ): Promise<JsonValue> {
-  let result = rpcs[procedureName].apply(rpcs, args || []);
+  let result = rpcs[procedureName].apply(null, args || []);
   if (result instanceof Promise) {
     result = await result;
   }

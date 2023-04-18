@@ -1,17 +1,24 @@
 import {
+  JsonValue,
   ProcedureCallPayload,
   ProcedureName,
   Procedures,
   PublicProcedureError,
 } from "./server.ts";
 
-export class ClientProcedureError extends Error {
+export type ClientProcedures<T extends Procedures> = {
+  [S in keyof T]: T[S] extends (...args: Parameters<T[S]>) => JsonValue
+    ? (...args: Parameters<T[S]>) => Promise<ReturnType<T[S]>>
+    : (...args: Parameters<T[S]>) => ReturnType<T[S]>;
+};
+
+export class ClientProcedureError<T extends Procedures> extends Error {
   type: string;
   data?: unknown;
 
   constructor({ type, error, ...data }: {
     type: "server_error";
-    error: PublicProcedureError;
+    error: PublicProcedureError<T>;
   } | {
     type: "client_exception";
     error: unknown;
@@ -37,11 +44,11 @@ export function buildRequestFor<
   url: string | URL,
   procedureName: S,
   args: Parameters<T[S]>,
-  opts?: { headers: Headers | [string, string][] | Record<string, string> },
+  opts?: RequestInit,
 ): Request {
   const headers = new Headers(opts?.headers || {});
   headers.set("content-type", "application/json");
-  const payload: ProcedureCallPayload = {
+  const payload: ProcedureCallPayload<T> = {
     procedureName,
     args,
   };
@@ -55,23 +62,44 @@ export function buildRequestFor<
     }
   }
   return new Request(url, {
+    ...opts,
     method: "post",
     headers,
     body: JSON.stringify(payload),
   });
 }
 
+export function callsFor<
+  T extends Procedures,
+>(rpcs: T): ClientProcedures<T> {
+  // @ts-ignore: I know what I'm doing... I hope
+  const result: ClientProcedures<T> = {};
+  // @ts-ignore: I know what I'm doing... I hope
+  Object.entries(rpcs).forEach(([rpcName, _]) =>
+    // @ts-ignore: I know what I'm doing... I hope
+    // deno-lint-ignore no-explicit-any
+    result[rpcName] = (...args: any[]) => {
+      // @ts-ignore: I know what I'm doing... I hope
+      return this.call(rpcName, ...args);
+    }
+  );
+  return result;
+}
+
 export class Client<T extends Procedures> {
   #base: string | URL;
+  #opts: RequestInit;
+  calls: ClientProcedures<T>;
 
-  constructor(endpoint: string | URL) {
+  constructor(endpoint: string | URL, rpcs: T, opts?: RequestInit) {
     this.#base = endpoint;
+    this.#opts = opts || {};
+    this.calls = callsFor(rpcs);
   }
 
   async call<S extends ProcedureName<T>>(
     procedureName: S,
-    args?: Parameters<T[S]>,
-    opts?: { headers: Headers | [string, string][] | Record<string, string> },
+    ...args: Parameters<T[S]>
   ): Promise<ReturnType<T[S]>> {
     let response: Response | undefined = undefined;
     try {
@@ -79,7 +107,7 @@ export class Client<T extends Procedures> {
         this.#base,
         procedureName,
         args || [],
-        opts,
+        this.#opts,
       );
       response = await fetch(request);
       const body = await response.json();
@@ -89,7 +117,7 @@ export class Client<T extends Procedures> {
         // TODO: check that body is a PublicProcedureError
         throw new ClientProcedureError({
           type: "server_error",
-          error: body as PublicProcedureError,
+          error: body as PublicProcedureError<T>,
         });
       }
     } catch (error) {

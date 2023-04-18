@@ -5,10 +5,12 @@ import {
   assertRejects,
 } from "https://deno.land/std@0.183.0/testing/asserts.ts";
 import { handleProcedureCall } from "./server.ts";
-import { buildRequestFor, Client } from "./client.ts";
-import { buildCall } from "./testing.ts";
+import { buildRequestFor, callsFor, Client } from "./client.ts";
 
 const rpcs = {
+  ping() {
+    return `pong`;
+  },
   sayHelloTo(a: string) {
     return `Hello, ${a}`;
   },
@@ -29,29 +31,38 @@ Deno.test("basic server and client RPCs work as expected", async () => {
         return await handleProcedureCall(req, rpcs);
       } catch (err) {
         console.error(err);
-        return err;
+        return new Response("{}", { status: 400 });
       }
     },
     { port: 24515, signal: ac.signal },
   );
 
-  const client = new Client("http://127.0.0.1:24515");
-  const call = client.call.bind(client);
-
-  assertRejects(() => call("notReal", ["yo"]));
-
-  assertEquals(await call("sayHelloTo", ["World"]), "Hello, World");
-  assertNotEquals(await call("sayHelloTo", ["World"]), "Hello, None");
-
-  assertEquals(await call("add", [3, 4]), 7);
-  assertNotEquals(await call("add", [3, 3]), 7);
+  const client = new Client("http://127.0.0.1:24515", rpcs);
 
   assertEquals(
-    await call("report", [3, 4, "You're welcome!"]),
+    await client.call("add", 8, 9),
+    17,
+  );
+
+  // @ts-ignore: intentionally checking for server error
+  await assertRejects(() => client.call("notReal", ["yo"]));
+
+  assertEquals(await client.call("ping"), "pong");
+  assertEquals(await client.calls.ping(), "pong");
+  assertNotEquals(await client.calls.ping(), "ack");
+
+  assertEquals(await client.calls.sayHelloTo("World"), "Hello, World");
+  assertNotEquals(await client.calls.sayHelloTo("World"), "Hello, None");
+
+  assertEquals(await client.call("add", 3, 4), 7);
+  assertNotEquals(await client.call("add", 3, 3), 7);
+
+  assertEquals(
+    await client.call("report", 3, 4, "You're welcome!"),
     "Your score: 3 of 4 -- You're welcome!",
   );
   assertNotEquals(
-    await call("report", [3, 9, null]),
+    await client.call("report", 3, 9, null),
     "Your score: 7 of 9 -- Thank you!",
   );
 
@@ -60,7 +71,7 @@ Deno.test("basic server and client RPCs work as expected", async () => {
 });
 
 Deno.test("request/response RPCs work as expected", async () => {
-  const call = buildCall(rpcs);
+  const calls = callsFor(rpcs);
 
   assertRejects(() =>
     handleProcedureCall(
@@ -68,19 +79,22 @@ Deno.test("request/response RPCs work as expected", async () => {
       rpcs,
     )
   );
+  const ping = calls.ping;
 
-  assertEquals(await call("sayHelloTo", ["World"]), "Hello, World");
-  assertNotEquals(await call("sayHelloTo", ["World"]), "Hello, None");
+  assertEquals(await ping(), "Hello, World");
 
-  assertEquals(await call("add", [3, 4]), 7);
-  assertNotEquals(await call("add", [3, 3]), 7);
+  assertEquals(await calls.sayHelloTo("World"), "Hello, World");
+  assertNotEquals(await calls.sayHelloTo("World"), "Hello, None");
+
+  assertEquals(await calls.add(3, 4), 7);
+  assertNotEquals(await calls.add(3, 3), 7);
 
   assertEquals(
-    await call("report", [3, 4, "You're welcome!"]),
+    await calls.report(3, 4, "You're welcome!"),
     "Your score: 3 of 4 -- You're welcome!",
   );
   assertNotEquals(
-    await call("report", [3, 9, null]),
+    await calls.report(3, 9, null),
     "Your score: 7 of 9 -- Thank you!",
   );
 });
