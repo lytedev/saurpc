@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.183.0/http/server.ts";
 import {
+  assert,
   assertEquals,
   assertNotEquals,
 } from "https://deno.land/std@0.183.0/testing/asserts.ts";
 import { genCalls, genLocalCalls, handleRpcRequest } from "./mod.ts";
+import { bundle } from "https://deno.land/x/emit@0.19.0/mod.ts";
 
 const rpcs = {
   ping() {
@@ -87,4 +89,10 @@ Deno.test("request/response RPCs work as expected", async () => {
     await calls.report(3, 9, null),
     "Your score: 7 of 9 -- Thank you!",
   );
+});
+
+Deno.test("able to bundle a client without including the server implementation details", async () => {
+  const { code } = await bundle("test_fixtures/client.ts");
+  console.log(code);
+  assert(!code.includes("Your score"));
 });

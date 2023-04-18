@@ -11,11 +11,11 @@ Please refer to the automated documentation:
 
 Or if you need a particular version, you can specify it like so:
 
-- https://deno.land/x/saurpc@0.1.1/mod.ts
+- https://deno.land/x/saurpc@0.4.0/mod.ts
 
 ## Example
 
-A very basic example is available in [./fullstack_test.ts](./fullstack_test.ts).
+A very basic example is available in [./mod_test.ts](./mod_test.ts).
 
 # Development
 
