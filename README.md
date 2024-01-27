@@ -11,7 +11,7 @@ Please refer to the automated documentation:
 
 Or if you need a particular version, you can specify it like so:
 
-- https://deno.land/x/saurpc@0.4.0/mod.ts
+- https://deno.land/x/saurpc@0.4.1/mod.ts
 
 ## Example
 

@@ -204,16 +204,8 @@ export function createRpcRequestWithOptions<
   ...args: Parameters<T[S]>
 ): Request {
   // make sure the server knows we are sending json
-  if (opts.headers === undefined) {
-    opts.headers = new Headers();
-  }
-  if (opts.headers instanceof Headers) {
-    opts.headers.set("content-type", "application/json");
-  } else if (Array.isArray(opts.headers)) {
-    opts.headers.push(["content-type", "application/json"]);
-  } else if (typeof opts.headers === "object") {
-    opts.headers["content-type"] = "application/json";
-  }
+  const headers = opts?.headers ? new Headers(opts.headers) : new Headers();
+  headers.set("content-type", "application/json");
 
   // include the procedure name in the query parameters
   if (input instanceof Request) {
