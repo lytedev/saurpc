@@ -11,6 +11,9 @@ const rpcs = {
   ping() {
     return `pong`;
   },
+  now() {
+    return new Date();
+  },
   sayHelloTo(a: string) {
     return `Hello, ${a}`;
   },
